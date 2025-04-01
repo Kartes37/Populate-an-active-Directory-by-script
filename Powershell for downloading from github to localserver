@@ -1,0 +1,10 @@
+# URL du fichier spécifique à télécharger (remplacez par l'URL de votre fichier)
+$fileUrl = "https://github.com/votre-utilisateur/votre-depot/raw/main/Import-Users.ps1"
+
+# Chemin local où le fichier sera enregistré
+$destinationPath = "C:\Users\Administrateur\Documents\TestScriptAD\Import-Users.ps1"
+
+# Télécharger le fichier
+Invoke-WebRequest -Uri $fileUrl -OutFile $destinationPath
+
+Write-Host "Le fichier a été téléchargé avec succès."

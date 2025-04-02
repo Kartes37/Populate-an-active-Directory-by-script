@@ -2,8 +2,8 @@
 Import-Module ActiveDirectory
 
 # Define the CSV file paths
-$normalUsersCsv = "C:\path\to\UserADT.csv"
-$adminUsersCsv = "C:\path\to\User_AdminT.csv"
+$normalUsersCsv = "C:\Users\Administrateur\Documents\TestScriptAD\UserADT.csv"
+$adminUsersCsv = "C:\Users\Administrateur\Documents\TestScriptAD\User_AdminT.csv"
 
 # Define the domain
 $domain = "doudou.loc"

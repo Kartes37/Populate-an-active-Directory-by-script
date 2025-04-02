@@ -62,7 +62,13 @@ This script is fed with two .CSV files that contain the list of users I chose to
     Error checks helped handle duplicate issues or missing groups.
 
 
+
+
    French version:
+
+   
+
+   
 1. Préparation des fichiers CSV
 
     Création des fichiers CSV : Tu as préparé deux fichiers CSV contenant les informations des utilisateurs à importer dans Active Directory.

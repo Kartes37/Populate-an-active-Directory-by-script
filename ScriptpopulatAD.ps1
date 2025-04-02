@@ -1,69 +1,86 @@
+Import-Module ActiveDirectory
+
 # Définition des chemins des fichiers CSV
 $csvNormalUsers = "C:\Users\Administrateur\Documents\TestScriptAD\Populate-an-active-Directory-by-script-main\UserADT.csv"
 $csvAdminUsers = "C:\Users\Administrateur\Documents\TestScriptAD\Populate-an-active-Directory-by-script-main\User_AdminT.csv"
-
-# Vérification de l'existence des fichiers CSV
-if (!(Test-Path $csvNormalUsers) -or !(Test-Path $csvAdminUsers)) {
-    Write-Host "❌ Erreur : Un ou plusieurs fichiers CSV sont introuvables !" -ForegroundColor Red
-    exit
-}
 
 # Création des OUs si elles n'existent pas
 $ouNormalUsers = "OU=NormalUsers,DC=doudou,DC=loc"
 $ouAdminUsers = "OU=AdminUsers,DC=doudou,DC=loc"
 
-foreach ($ou in @($ouNormalUsers, $ouAdminUsers)) {
-    if (-not (Get-ADOrganizationalUnit -Filter "DistinguishedName -eq '$ou'")) {
-        New-ADOrganizationalUnit -Name ($ou -split ",")[0].Substring(3) -Path "DC=doudou,DC=loc"
-        Write-Host "✅ L'OU $ou a été créée." -ForegroundColor Green
-    } else {
-        Write-Host "✅ L'OU $ou existe déjà." -ForegroundColor Green
-    }
-}
-
-# Vérification et création du groupe "Domain Admins"
-$groupName = "Domain Admins"
-$group = Get-ADGroup -Filter "Name -eq '$groupName'"
-if (!$group) {
-    New-ADGroup -Name $groupName -GroupScope Global -GroupCategory Security -Path "CN=Users,DC=doudou,DC=loc"
-    Write-Host "✅ Le groupe '$groupName' a été créé." -ForegroundColor Green
+if (-not (Get-ADOrganizationalUnit -Filter {DistinguishedName -eq $ouNormalUsers} -ErrorAction SilentlyContinue)) {
+    New-ADOrganizationalUnit -Name "NormalUsers" -Path "DC=doudou,DC=loc" -ProtectedFromAccidentalDeletion $false
+    Write-Host "✅ L'OU $ouNormalUsers a été créée."
 } else {
-    Write-Host "✅ Le groupe '$groupName' existe déjà." -ForegroundColor Green
+    Write-Host "✅ L'OU $ouNormalUsers existe déjà."
 }
 
-# Fonction pour ajouter des utilisateurs depuis un fichier CSV
-function Add-UsersFromCSV {
+if (-not (Get-ADOrganizationalUnit -Filter {DistinguishedName -eq $ouAdminUsers} -ErrorAction SilentlyContinue)) {
+    New-ADOrganizationalUnit -Name "AdminUsers" -Path "DC=doudou,DC=loc" -ProtectedFromAccidentalDeletion $false
+    Write-Host "✅ L'OU $ouAdminUsers a été créée."
+} else {
+    Write-Host "✅ L'OU $ouAdminUsers existe déjà."
+}
+
+# Vérification de l'existence du groupe "Domain Admins"
+$domainAdminsGroup = Get-ADGroup -Filter {Name -eq "Domain Admins"} -ErrorAction SilentlyContinue
+if (-not $domainAdminsGroup) {
+    Write-Host "❌ Erreur : Le groupe 'Domain Admins' n'existe pas dans Active Directory."
+}
+
+# Fonction pour créer les utilisateurs
+function New-ADUserFromCSV {
     param (
-        [string]$csvPath,
+        [string]$csvFile,
         [string]$ouPath,
         [bool]$isAdmin
     )
     
-    $users = Import-Csv -Path $csvPath -Delimiter ";"
+    if (!(Test-Path $csvFile)) {
+        Write-Host "❌ Erreur : Le fichier CSV $csvFile est introuvable !"
+        return
+    }
+    
+    $users = Import-Csv -Path $csvFile -Delimiter ";"
     
     foreach ($user in $users) {
         $username = $user.username
+        $firstName = $user.first_name
+        $lastName = $user.last_name
+        $email = $user.email
+        $password = $user.Password
         
-        if (Get-ADUser -Filter "SamAccountName -eq '$username'") {
-            Write-Host "⚠️ L'utilisateur $username existe déjà, aucune modification effectuée." -ForegroundColor Yellow
-        } else {
-            $password = ConvertTo-SecureString $user.Password -AsPlainText -Force
-            New-ADUser -SamAccountName $username -UserPrincipalName "$username@doudou.loc" `
-                        -GivenName $user.first_name -Surname $user.last_name -EmailAddress $user.email `
-                        -Name "$($user.first_name) $($user.last_name)" -Path $ouPath -AccountPassword $password `
-                        -Enabled $true
-            Write-Host "✅ Utilisateur $username créé avec succès !" -ForegroundColor Green
-            
-            if ($isAdmin) {
-                Add-ADGroupMember -Identity $groupName -Members $username
-                Write-Host "🔹 Utilisateur $username ajouté au groupe $groupName." -ForegroundColor Cyan
-            }
+        # Vérifier si l'utilisateur existe déjà
+        if (Get-ADUser -Filter {SamAccountName -eq $username} -ErrorAction SilentlyContinue) {
+            Write-Host "⚠️ L'utilisateur $username existe déjà, aucune modification effectuée."
+            continue
+        }
+        
+        # Création de l'utilisateur
+        New-ADUser -SamAccountName $username `
+                    -UserPrincipalName "$username@doudou.loc" `
+                    -GivenName $firstName `
+                    -Surname $lastName `
+                    -Name "$firstName $lastName" `
+                    -EmailAddress $email `
+                    -Path $ouPath `
+                    -AccountPassword (ConvertTo-SecureString $password -AsPlainText -Force) `
+                    -Enabled $true `
+                    -PasswordNeverExpires $true
+        
+        Write-Host "✅ Utilisateur $username créé avec succès !"
+        
+        # Ajouter l'utilisateur au groupe Domain Admins s'il est admin
+        if ($isAdmin -and $domainAdminsGroup) {
+            Add-ADGroupMember -Identity "Domain Admins" -Members $username
+            Write-Host "🔹 Utilisateur $username ajouté au groupe Domain Admins."
         }
     }
 }
 
-# Ajout des utilisateurs
-Add-UsersFromCSV -csvPath $csvNormalUsers -ouPath $ouNormalUsers -isAdmin $false
-Add-UsersFromCSV -csvPath $csvAdminUsers -ouPath $ouAdminUsers -isAdmin $true
+# Création des utilisateurs depuis les fichiers CSV
+New-ADUserFromCSV -csvFile $csvNormalUsers -ouPath $ouNormalUsers -isAdmin $false
+New-ADUserFromCSV -csvFile $csvAdminUsers -ouPath $ouAdminUsers -isAdmin $true
 
-Write-Host "✅ Tous les utilisateurs ont été traités avec succès." -ForegroundColor Green
+Write-Host "✅ Tous les utilisateurs ont été traités avec succès."
+

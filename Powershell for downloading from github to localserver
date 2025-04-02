@@ -1,10 +1,40 @@
-# URL du fichier spécifique à télécharger (remplacez par l'URL de votre fichier)
-$fileUrl = "https://github.com/Kartes37/Populate-an-active-Directory-by-script.git"
-
-# Chemin local où le fichier sera enregistré
+# Définition des chemins
+$fileUrl = "https://github.com/Kartes37/Populate-an-active-Directory-by-script/archive/refs/heads/main.zip"
+$zipPath = "C:\Users\Administrateur\Documents\TestScriptAD.zip"
 $destinationPath = "C:\Users\Administrateur\Documents\TestScriptAD"
 
-# Télécharger le fichier
-Invoke-WebRequest -Uri $fileUrl -OutFile $destinationPath
+# Vérifier si le dossier existe déjà et le supprimer pour éviter les conflits
+if (Test-Path $destinationPath) {
+    Write-Host "Suppression de l'ancien dossier..."
+    Remove-Item -Recurse -Force $destinationPath
+}
 
-Write-Host "Le fichier a été téléchargé avec succès."
+# Télécharger l'archive ZIP
+Write-Host "Téléchargement de l'archive ZIP..."
+Invoke-WebRequest -Uri $fileUrl -OutFile $zipPath
+
+# Vérifier si le téléchargement a réussi
+if (Test-Path $zipPath) {
+    Write-Host "Le fichier ZIP a été téléchargé avec succès."
+} else {
+    Write-Host "Erreur : le fichier ZIP n'a pas été téléchargé !" -ForegroundColor Red
+    exit 1
+}
+
+# Extraire le fichier ZIP
+Write-Host "Extraction du fichier ZIP..."
+Expand-Archive -Path $zipPath -DestinationPath $destinationPath -Force
+
+# Vérifier si l'extraction a réussi
+if (Test-Path $destinationPath) {
+    Write-Host "L'archive ZIP a été extraite avec succès."
+} else {
+    Write-Host "Erreur : l'extraction a échoué !" -ForegroundColor Red
+    exit 1
+}
+
+# Supprimer l'archive ZIP après extraction
+Write-Host "Suppression de l'archive ZIP..."
+Remove-Item -Path $zipPath -Force
+
+Write-Host "Le script a terminé avec succès !" -ForegroundColor Green

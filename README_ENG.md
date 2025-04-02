@@ -1,5 +1,7 @@
-Here is my summary of the process I followed to create a script, using the tools of the 21st century, to populate an Active Directory with a PowerShell script.
+#Here is my summary of the process I followed to create a script, using the tools of the 21st century, to populate an Active Directory with a PowerShell script.
 This script is fed with two .CSV files that contain the list of users I chose to add to the Active Directory.
+
+#This script can be used without giving me credit for its creation or use. However, I do not take responsibility if something goes wrong with your usage.
 
 1. Preparing the CSV Files
 
